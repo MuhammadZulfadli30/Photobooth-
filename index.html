@@ -124,23 +124,20 @@
       background: #000;
     }
 
-    /* FIX: CSS untuk Filter & Mirror */
     #liveCanvas {
-      /* Kita hapus transform CSS karena mirror akan dilakukan manual di canvas */
-      object-fit: cover;
+      display: block;
       width: 100%;
       height: 100%;
+      object-fit: cover;
     }
 
-    .video-source-hidden {
+    /* Fix Mobile: Video harus ada di DOM tapi disembunyikan dengan opacity agar tetap jalan */
+    #videoPreview {
       position: absolute;
       width: 1px;
       height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
+      opacity: 0;
+      pointer-events: none;
     }
 
     @keyframes flash {
@@ -162,7 +159,6 @@
     .skull-decoration { filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); }
     .result-poster { background: linear-gradient(to bottom, #d9c9a8 0%, #c4b393 50%, #b8a685 100%); }
     
-    /* Hide scrollbar */
     body::-webkit-scrollbar { display: none; }
     body { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -201,7 +197,8 @@
           <div class="mt-6 animate-in animate-in-delay-2">
             <div class="viewfinder relative aspect-[3/4] max-w-xs mx-auto">
               
-              <video id="videoPreview" autoplay playsinline muted class="video-source-hidden"></video>
+              <!-- Video tersembunyi tapi aktif -->
+              <video id="videoPreview" autoplay playsinline muted></video>
               <canvas id="liveCanvas"></canvas>
               
               <!-- Viewfinder corners -->
@@ -217,7 +214,7 @@
           <!-- Filter Panel -->
           <div class="mt-6 animate-in animate-in-delay-3">
             <p class="text-xs text-[#5c4a32] mb-3 font-bold tracking-wider">SELECT CAMERA MODE</p>
-            <div id="effectsPanel" class="flex justify-center gap-3">
+            <div id="effectsPanel" class="flex justify-center gap-3 flex-wrap">
               <button data-effect="original" class="filter-btn active px-4 py-2 rounded text-sm">Original</button>
               <button data-effect="vintage" class="filter-btn px-4 py-2 rounded text-sm">Vintage</button>
               <button data-effect="aesthetic" class="filter-btn px-4 py-2 rounded text-sm">Aesthetic</button>
@@ -271,7 +268,7 @@
             <div class="absolute -bottom-2 -right-2 w-4 h-4 bg-[#c9a227] rounded-full"></div>
           </div>
 
-          <div class="mt-4">
+          <div class="mt-6"> <!-- Tambah margin top -->
             <p class="font-wanted text-lg text-[#2d1f0f] tracking-wide">REWARD</p>
             <p class="font-poster text-xl text-[#8b2500] tracking-wider">LEGENDARY TREASURE</p>
           </div>
@@ -298,7 +295,7 @@
     let stream = null;
     let animationId = null;
     
-    // Filter Definitions (CSS Strings)
+    // Filter Definitions
     const filterStyles = {
       'original': 'none',
       'vintage': 'sepia(0.7) contrast(1.2) brightness(0.95) saturate(1.1)',
@@ -338,51 +335,66 @@
       await initCamera();
     }
 
-    // Camera Init
+    // Camera Init - Fix for Mobile
     async function initCamera() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        // Constraints untuk mobile dan desktop
+        const constraints = {
+          video: { 
+            facingMode: 'user', 
+            width: { ideal: 1280 }, // Minta resolusi besar, tapi akan di-downscale canvas-nya
+            height: { ideal: 720 } 
+          },
           audio: false
-        });
+        };
+        
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
         
         videoPreview.srcObject = stream;
         
-        videoPreview.onloadedmetadata = () => {
-          videoPreview.play();
-          liveCanvas.width = videoPreview.videoWidth;
-          liveCanvas.height = videoPreview.videoHeight;
+        // FIX: Gunakan event 'playing' agar lebih reliable di mobile
+        videoPreview.onplaying = () => {
+          // Set canvas size (jangan terlalu besar agar performa HP bagus)
+          // Kita set max 640 lebar
+          const vw = videoPreview.videoWidth;
+          const vh = videoPreview.videoHeight;
+          
+          // Scaling down jika terlalu besar untuk kinerja mobile
+          const scale = Math.min(1, 800 / vw); 
+          
+          liveCanvas.width = vw * scale;
+          liveCanvas.height = vh * scale;
+          
+          console.log(`Canvas size: ${liveCanvas.width}x${liveCanvas.height}`);
+          
           renderLoop();
         };
-        
+
+        // Paksa play untuk browser ketat
+        await videoPreview.play();
+
       } catch (err) {
         console.error('Camera error:', err);
-        alert('Kamera tidak bisa diakses.');
+        alert('Gagal mengakses kamera. Pastikan izin kamera sudah diberikan.');
       }
     }
 
-    // Render Loop (Preview Only)
-    // FIX: Terapkan filter dan mirror di dalam canvas context, bukan CSS element
+    // Render Loop
     function renderLoop() {
       if (!videoPreview.paused && !videoPreview.ended) {
-        // 1. Clear canvas
         liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
-        
-        // 2. Save context state
         liveCtx.save();
-
-        // 3. Apply Mirror (Flip Horizontal)
+        
+        // Mirror
         liveCtx.translate(liveCanvas.width, 0);
         liveCtx.scale(-1, 1);
-
-        // 4. Apply Filter
-        // Ini memastikan data pixel di canvas sudah ter-filter, bukan hanya tampilan visual
+        
+        // Apply Filter via Context
         liveCtx.filter = filterStyles[currentEffect];
-
-        // 5. Draw video frame
+        
+        // Draw scaled
         liveCtx.drawImage(videoPreview, 0, 0, liveCanvas.width, liveCanvas.height);
-
-        // 6. Restore context
+        
         liveCtx.restore();
       }
       animationId = requestAnimationFrame(renderLoop);
@@ -391,9 +403,6 @@
     // Select Effect
     function selectEffect(effect) {
       currentEffect = effect;
-      // Hapus style filter CSS karena sekarang ditangani di renderLoop
-      // liveCanvas.style.filter = filterStyles[effect]; 
-      
       effectsPanel.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.effect === effect);
       });
@@ -412,29 +421,26 @@
       resultCanvas.height = h;
       const rCtx = resultCanvas.getContext('2d');
 
-      // 1. Clear
+      // Clear
       rCtx.clearRect(0, 0, w, h);
 
-      // 2. Calculate Crop (Cover)
-      const videoW = liveCanvas.width;
-      const videoH = liveCanvas.height;
+      // Calculate Crop
+      const canvasW = liveCanvas.width;
+      const canvasH = liveCanvas.height;
       const ratio = w/h;
-      const videoRatio = videoW/videoH;
+      const canvasRatio = canvasW/canvasH;
 
-      let sx = 0, sy = 0, sw = videoW, sh = videoH;
+      let sx = 0, sy = 0, sw = canvasW, sh = canvasH;
 
-      if (videoRatio > ratio) {
-          sw = videoH * ratio;
-          sx = (videoW - sw) / 2;
+      if (canvasRatio > ratio) {
+          sw = canvasH * ratio;
+          sx = (canvasW - sw) / 2;
       } else {
-          sh = videoW / ratio;
-          sy = (videoH - sh) / 2;
+          sh = canvasW / ratio;
+          sy = (canvasH - sh) / 2;
       }
 
-      // 3. Draw
-      // Karena liveCanvas sudah di-mirror dan di-filter di renderLoop,
-      // kita tinggal menggambar isinya langsung.
-      // Tidak perlu transform mirror atau filter lagi di sini.
+      // Draw dari liveCanvas (yang sudah ter-filter dan ter-mirror)
       rCtx.drawImage(liveCanvas, sx, sy, sw, sh, 0, 0, w, h);
 
       showResult();
@@ -458,7 +464,7 @@
       const posterCtx = posterCanvas.getContext('2d');
       
       const pW = 600; 
-      const pH = 800;
+      const pH = 850; // Sedikit tinggiin biar muat text
       posterCanvas.width = pW;
       posterCanvas.height = pH;
 
@@ -480,19 +486,56 @@
       posterCtx.font = '30px Sancreek, cursive';
       posterCtx.fillText('CAPTAIN FADLI CREW', pW/2, 170);
 
+      // Photo Frame Position - FIX MARGIN
+      const frameW = 300; 
+      const frameH = 400;
+      const frameX = (pW - frameW) / 2; 
+      const frameY = 200; // Geser sedikit ke bawah
+      
+      // Draw Frame Border
+      posterCtx.fillStyle = '#2d1f0f';
+      posterCtx.fillRect(frameX, frameY, frameW, frameH);
+      
+      // Draw Photo
+      const padding = 8;
+      posterCtx.drawImage(resultCanvas, frameX + padding, frameY + padding, frameW - (padding*2), frameH - (padding*2));
+
+      // Gold Corners
+      drawGoldCircle(posterCtx, frameX, frameY, 10);
+      drawGoldCircle(posterCtx, frameX + frameW, frameY, 10);
+      drawGoldCircle(posterCtx, frameX, frameY + frameH, 10);
+      drawGoldCircle(posterCtx, frameX + frameW, frameY + frameH, 10);
+
+      // Texts Below Photo - FIX MARGIN
+      // Frame ends at 200 + 400 = 600. 
+      // Let's put Reward at 660 (gap 60px)
+      
       posterCtx.font = '30px Rye, serif';
       posterCtx.fillStyle = '#2d1f0f';
-      posterCtx.fillText('REWARD', pW/2, 620);
+      posterCtx.fillText('REWARD', pW/2, 660);
       
       posterCtx.font = '28px Sancreek, cursive';
       posterCtx.fillStyle = '#8b2500';
-      posterCtx.fillText('LEGENDARY TREASURE', pW/2, 660);
+      posterCtx.fillText('LEGENDARY TREASURE', pW/2, 700);
 
+      // Stamp
+      posterCtx.save();
+      posterCtx.translate(pW/2, 750); // Geser ke bawah
+      posterCtx.rotate(-12 * Math.PI / 180);
+      posterCtx.font = 'bold 20px Rye, serif';
+      posterCtx.strokeStyle = '#8b2500';
+      posterCtx.lineWidth = 3;
+      posterCtx.strokeRect(-70, -20, 140, 35);
+      posterCtx.fillStyle = '#8b2500';
+      posterCtx.fillText('NEW RECRUIT', 0, 5);
+      posterCtx.restore();
+
+      // Date
       posterCtx.font = 'bold 18px Courier Prime, monospace';
       posterCtx.fillStyle = '#5c4a32';
-      posterCtx.fillText(dateDisplay.textContent, pW/2, 750);
+      posterCtx.fillText(dateDisplay.textContent, pW/2, 810); // Geser ke bawah
 
-      // 3. Draw Skull
+      // Skull
       const svgElement = document.getElementById('skullSvg');
       const svgData = new XMLSerializer().serializeToString(svgElement);
       const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
@@ -502,45 +545,8 @@
       skullImg.onload = () => {
         posterCtx.drawImage(skullImg, pW/2 - 60, 20, 120, 120);
         URL.revokeObjectURL(svgUrl);
-
-        // 4. Draw Photo Frame
-        // FIX: Sesuaikan ukuran frame dengan aspect ratio foto (300x400 -> 3:4)
-        // Kita buat frame tinggi 400px (skala 2x dari result canvas) -> lebar 300px
-        // Atau biarkan lebih kecil? Mari kita set 300x400 (sesuai source) di tengah.
         
-        const frameW = 300; 
-        const frameH = 400;
-        const frameX = (pW - frameW) / 2; // Center horizontal
-        const frameY = 210; // Position setelah header
-        
-        // Frame border
-        posterCtx.fillStyle = '#2d1f0f';
-        posterCtx.fillRect(frameX, frameY, frameW, frameH);
-        
-        // Photo
-        const padding = 8;
-        // Gambar resultCanvas (yang sudah benar aspect rasionya) ke frame
-        posterCtx.drawImage(resultCanvas, frameX + padding, frameY + padding, frameW - (padding*2), frameH - (padding*2));
-
-        // Gold Corners
-        drawGoldCircle(posterCtx, frameX, frameY, 10);
-        drawGoldCircle(posterCtx, frameX + frameW, frameY, 10);
-        drawGoldCircle(posterCtx, frameX, frameY + frameH, 10);
-        drawGoldCircle(posterCtx, frameX + frameW, frameY + frameH, 10);
-
-        // Stamp
-        posterCtx.save();
-        posterCtx.translate(pW/2, 710);
-        posterCtx.rotate(-12 * Math.PI / 180);
-        posterCtx.font = 'bold 20px Rye, serif';
-        posterCtx.strokeStyle = '#8b2500';
-        posterCtx.lineWidth = 3;
-        posterCtx.strokeRect(-70, -20, 140, 35);
-        posterCtx.fillStyle = '#8b2500';
-        posterCtx.fillText('NEW RECRUIT', 0, 5);
-        posterCtx.restore();
-
-        // Download
+        // Trigger Download
         const link = document.createElement('a');
         link.download = 'wanted-captain-fadli-crew.png';
         link.href = posterCanvas.toDataURL('image/png');
@@ -562,9 +568,6 @@
       resultView.classList.add('hidden');
       cameraView.classList.remove('hidden');
       currentEffect = 'original';
-      // Reset context filter saat restart
-      liveCtx.filter = filterStyles['original'];
-      
       effectsPanel.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.effect === 'original');
       });
