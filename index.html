@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>WANTED: Captain Fadli Crew</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Rye&family=Sancreek&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
@@ -25,6 +25,7 @@
       background: var(--bg-dark);
       min-height: 100vh;
       overflow-x: hidden;
+      margin: 0;
     }
 
     .font-wanted { font-family: 'Rye', serif; }
@@ -133,6 +134,15 @@
       background: #000;
     }
 
+    /* FIX: Menggunakan CSS untuk filter agar support di HP */
+    #liveCanvas {
+      transform: scaleX(-1); /* Mirror via CSS */
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+      transition: filter 0.3s ease;
+    }
+
     .video-source-hidden {
       position: absolute;
       width: 1px;
@@ -162,7 +172,7 @@
     .animate-in-delay-3 { animation-delay: 0.3s; opacity: 0; }
 
     .skull-decoration { filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); }
-    .result-poster { background: linear-gradient(to-bottom, #d9c9a8 0%, #c4b393 50%, #b8a685 100%); }
+    .result-poster { background: linear-gradient(to bottom, #d9c9a8 0%, #c4b393 50%, #b8a685 100%); }
     .print-lines {
       background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
     }
@@ -172,7 +182,7 @@
     }
   </style>
 </head>
-<body class="hide-scrollbar">
+<body>
   
   <div id="app" class="min-h-screen py-6 px-4">
     
@@ -202,13 +212,14 @@
           <h2 class="font-poster text-xl sm:text-2xl text-[#2d1f0f] tracking-wide animate-in animate-in-delay-1">CAPTAIN FADLI CREW</h2>
           <p class="text-sm text-[#5c4a32] mt-2 italic animate-in animate-in-delay-2">"Capture your pirate moment in vintage style"</p>
 
-          <!-- Camera Preview (Live Canvas) -->
+          <!-- Camera Preview -->
           <div class="mt-6 animate-in animate-in-delay-2">
             <div class="viewfinder relative aspect-[3/4] max-w-xs mx-auto">
               
               <video id="videoPreview" autoplay playsinline muted class="video-source-hidden"></video>
               
-              <canvas id="liveCanvas" class="w-full h-full object-cover"></canvas>
+              <!-- Canvas ini akan menampilkan video. Filter diterapkan via CSS di elemen ini -->
+              <canvas id="liveCanvas"></canvas>
               
               <!-- Viewfinder corners -->
               <div class="absolute top-2 left-2 w-6 h-6 border-l-2 border-t-2 border-[#c9a227] pointer-events-none z-10"></div>
@@ -251,7 +262,7 @@
       <div class="text-center mt-4 text-[#6b4423] text-xs opacity-60">DEAD OR ALIVE - CAPTAIN FADLI WANTS YOU</div>
     </div>
 
-    <!-- Result View (Hidden initially) -->
+    <!-- Result View -->
     <div id="resultView" class="hidden max-w-lg mx-auto">
       <div class="wood-frame relative rounded-sm p-3 sm:p-4">
         <div class="result-poster print-lines relative p-6 sm:p-8 text-center">
@@ -318,23 +329,15 @@
     let captureBtn, downloadBtn, retakeBtn, flashOverlay;
     let cameraView, resultView, dateDisplay, effectsPanel;
 
-    // Camera Filters Logic
-    // Returns a CSS filter string based on the selected mode
-    const getFilterStyle = (effect) => {
-      switch(effect) {
-        case 'vintage':
-          // Strong sepia, high contrast, slight fade
-          return 'sepia(0.7) contrast(1.2) brightness(0.95) saturate(1.1)';
-        case 'aesthetic':
-          // Soft, warm, slightly desaturated (film look)
-          return 'sepia(0.3) saturate(1.2) contrast(1.1) brightness(1.15)';
-        case 'original':
-        default:
-          return 'none';
-      }
+    // Definisi Filter (CSS Style Strings)
+    // Kita gunakan ini untuk CSS Preview
+    const filterStyles = {
+      'original': 'none',
+      'vintage': 'sepia(0.7) contrast(1.2) brightness(0.95) saturate(1.1)',
+      'aesthetic': 'sepia(0.3) saturate(1.2) contrast(1.1) brightness(1.15)'
     };
 
-    // Initialize App
+    // Inisialisasi Aplikasi
     async function initApp() {
       // Elements
       videoPreview = document.getElementById('videoPreview');
@@ -362,12 +365,17 @@
       });
 
       await initCamera();
+      
+      // Set initial filter state on CSS
+      liveCanvas.style.filter = filterStyles['original'];
+      
       isInitialized = true;
     }
 
     // Initialize Camera
     async function initCamera() {
       try {
+        // Minta izin kamera
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
           audio: false
@@ -378,6 +386,7 @@
         videoPreview.onloadedmetadata = () => {
           videoPreview.play();
           
+          // Set ukuran canvas sesuai video
           const width = videoPreview.videoWidth;
           const height = videoPreview.videoHeight;
           
@@ -394,23 +403,18 @@
     }
 
     // Render Loop
+    // Kita HANYA menggambar video mentah ke canvas.
+    // Efek filter ditangani oleh CSS (liveCanvas.style.filter), sehingga ringan untuk HP.
     function renderLoop() {
       if (!videoPreview.paused && !videoPreview.ended) {
-        // 1. Clear
+        // Clear canvas
         liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
         
-        // 2. Apply Filter
-        // We use the Canvas API filter property (hardware accelerated)
-        liveCtx.filter = getFilterStyle(currentEffect);
+        // Gambar video (Jangan lupa mirror manual di sini juga jika canvas tidak di CSS transform, 
+        // tapi di sini kita pakai CSS transform untuk mirror, jadi gambar normal saja)
+        // Sebenarnya lebih aman gambar normal lalu mirror via CSS.
         
-        // 3. Draw Video (Mirrored)
-        liveCtx.save();
-        liveCtx.scale(-1, 1);
-        liveCtx.drawImage(videoPreview, -liveCanvas.width, 0, liveCanvas.width, liveCanvas.height);
-        liveCtx.restore();
-        
-        // Reset filter for any subsequent drawing if needed
-        liveCtx.filter = 'none';
+        liveCtx.drawImage(videoPreview, 0, 0, liveCanvas.width, liveCanvas.height);
       }
       animationId = requestAnimationFrame(renderLoop);
     }
@@ -418,12 +422,17 @@
     // Select Effect
     function selectEffect(effect) {
       currentEffect = effect;
+      
+      // TERAPKAN FILTER VIA CSS - Ini yang membuatnya work di HP
+      liveCanvas.style.filter = filterStyles[effect];
+      
+      // Update UI tombol
       effectsPanel.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.effect === effect);
       });
     }
 
-    // Capture
+    // Capture Photo
     function capturePhoto() {
       if (!isInitialized) return;
 
@@ -431,18 +440,47 @@
       flashOverlay.classList.add('flash');
       setTimeout(() => flashOverlay.classList.remove('flash'), 300);
 
-      // Capture Result
+      // Canvas untuk hasil (Result Canvas)
       const w = 300; 
       const h = 400;
       resultCanvas.width = w;
       resultCanvas.height = h;
       const rCtx = resultCanvas.getContext('2d');
       
-      // Apply the same filter to result context
-      rCtx.filter = getFilterStyle(currentEffect);
+      // WAJIB: Reset transform sebelum menggambar
+      rCtx.setTransform(1, 0, 0, 1, 0, 0);
+
+      // 1. Terapkan filter ke Context Result Canvas
+      // Kita "bake" filter ke gambar hasil
+      rCtx.filter = filterStyles[currentEffect];
       
-      // Draw image
-      rCtx.drawImage(liveCanvas, 0, 0, w, h);
+      // 2. Mirror gambar secara manual di hasil download
+      // Karena kita mau hasilnya kayak di kaca (mirror)
+      rCtx.translate(w, 0);
+      rCtx.scale(-1, 1);
+      
+      // 3. Gambar dari Live Canvas (yang berisi video mentah) ke Result Canvas
+      // Hitung rasio agar pas di tengah (cover)
+      const videoRatio = liveCanvas.width / liveCanvas.height;
+      const resultRatio = w / h;
+      
+      let drawWidth, drawHeight, offsetX, offsetY;
+      
+      if (videoRatio > resultRatio) {
+        // Video lebih lebar, crop samping
+        drawHeight = h;
+        drawWidth = h * videoRatio;
+        offsetX = (w - drawWidth) / 2;
+        offsetY = 0;
+      } else {
+        // Video lebih tinggi, crop atas/bawah
+        drawWidth = w;
+        drawHeight = w / videoRatio;
+        offsetX = 0;
+        offsetY = (h - drawHeight) / 2;
+      }
+      
+      rCtx.drawImage(liveCanvas, offsetX, offsetY, drawWidth, drawHeight);
 
       showResult();
     }
@@ -471,11 +509,14 @@
     async function retakePhoto() {
       resultView.classList.add('hidden');
       cameraView.classList.remove('hidden');
-      // Reset filter to original on retake
+      
+      // Reset filter ke original saat retake
       currentEffect = 'original';
+      liveCanvas.style.filter = filterStyles['original'];
       effectsPanel.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.effect === 'original');
       });
+      
       await initCamera();
     }
 
