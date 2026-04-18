@@ -10,12 +10,9 @@
     :root {
       --bg-dark: #1a1208;
       --bg-paper: #d4c4a8;
-      --bg-paper-dark: #b8a685;
       --accent-gold: #c9a227;
       --accent-red: #8b2500;
       --text-dark: #2d1f0f;
-      --wood-dark: #3d2512;
-      --wood-light: #6b4423;
     }
 
     * { box-sizing: border-box; }
@@ -33,9 +30,7 @@
 
     .paper-texture {
       background: 
-        linear-gradient(135deg, transparent 0%, rgba(0,0,0,0.03) 50%, transparent 100%),
         radial-gradient(ellipse at 20% 30%, rgba(201, 162, 39, 0.1) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 70%, rgba(139, 37, 0, 0.08) 0%, transparent 50%),
         linear-gradient(to bottom, #d9c9a8 0%, #c4b393 50%, #b8a685 100%);
       position: relative;
     }
@@ -51,10 +46,7 @@
 
     .wood-frame {
       background: linear-gradient(135deg, #5c3a1e 0%, #3d2512 50%, #2a1808 100%);
-      box-shadow: 
-        inset 0 2px 4px rgba(255,255,255,0.15),
-        inset 0 -2px 4px rgba(0,0,0,0.4),
-        0 8px 32px rgba(0,0,0,0.6);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
     }
 
     .wood-frame::before {
@@ -85,23 +77,16 @@
     }
 
     .wanted-glow {
-      text-shadow: 
-        0 0 20px rgba(201, 162, 39, 0.3),
-        2px 2px 0 rgba(45, 31, 15, 0.5);
+      text-shadow: 0 0 20px rgba(201, 162, 39, 0.3), 2px 2px 0 rgba(45, 31, 15, 0.5);
     }
 
     .btn-pirate {
       background: linear-gradient(to bottom, #8b5a2b 0%, #5c3a1e 50%, #3d2512 100%);
       border: 2px solid #2a1808;
-      box-shadow: 
-        inset 0 1px 2px rgba(255,255,255,0.2),
-        0 4px 8px rgba(0,0,0,0.4);
-      transition: all 0.2s ease;
       color: #d4c4a8;
+      transition: all 0.2s ease;
     }
-
     .btn-pirate:hover { transform: translateY(-2px); }
-    .btn-pirate:active { transform: translateY(1px); }
 
     .filter-btn { 
       transition: all 0.2s ease;
@@ -109,10 +94,8 @@
       border: 2px solid #2d1f0f;
       color: #2d1f0f;
     }
-    .filter-btn:hover { transform: translateY(-2px); }
     .filter-btn.active { 
       box-shadow: 0 0 0 3px var(--accent-gold);
-      background: #d4c4a8;
       font-weight: bold;
     }
 
@@ -124,6 +107,7 @@
       background: #000;
     }
 
+    /* Canvas akan menampilkan hasil akhir (sudah difilter JS) */
     #liveCanvas {
       display: block;
       width: 100%;
@@ -131,36 +115,20 @@
       object-fit: cover;
     }
 
-    /* Fix Mobile: Video harus ada di DOM tapi disembunyikan dengan opacity agar tetap jalan */
+    /* Sembunyikan video asli */
     #videoPreview {
       position: absolute;
       width: 1px;
       height: 1px;
       opacity: 0;
-      pointer-events: none;
     }
 
     @keyframes flash {
-      0% { opacity: 0; }
-      50% { opacity: 1; }
-      100% { opacity: 0; }
+      0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; }
     }
     .flash { animation: flash 0.3s ease-out; }
-
-    @keyframes fadeSlideIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-in { animation: fadeSlideIn 0.6s ease-out forwards; }
-    .animate-in-delay-1 { animation-delay: 0.1s; opacity: 0; }
-    .animate-in-delay-2 { animation-delay: 0.2s; opacity: 0; }
-    .animate-in-delay-3 { animation-delay: 0.3s; opacity: 0; }
-
-    .skull-decoration { filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); }
-    .result-poster { background: linear-gradient(to bottom, #d9c9a8 0%, #c4b393 50%, #b8a685 100%); }
     
     body::-webkit-scrollbar { display: none; }
-    body { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body>
@@ -172,73 +140,8 @@
       <div class="wood-frame relative rounded-sm p-3 sm:p-4">
         <div class="paper-texture burnt-edges relative p-6 sm:p-8 text-center">
           
-          <!-- Header -->
-          <div class="flex justify-center mb-4 animate-in">
-            <svg id="skullSvg" class="skull-decoration w-16 h-16" viewBox="0 0 64 64" fill="none">
-              <ellipse cx="32" cy="28" rx="18" ry="20" fill="#2d1f0f"/>
-              <ellipse cx="24" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
-              <ellipse cx="40" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
-              <path d="M28 38 L32 44 L36 38" stroke="#2d1f0f" stroke-width="2" fill="none"/>
-              <path d="M8 22 Q32 -8 56 22 Q48 18 32 16 Q16 18 8 22" fill="#2d1f0f"/>
-              <rect x="12" y="18" width="40" height="6" fill="#2d1f0f"/>
-              <line x1="8" y1="52" x2="24" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
-              <line x1="24" y1="52" x2="8" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
-              <line x1="40" y1="52" x2="56" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
-              <line x1="56" y1="52" x2="40" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
-            </svg>
-          </div>
-
-          <h1 class="font-wanted text-4xl sm:text-5xl text-[#2d1f0f] tracking-wider wanted-glow animate-in animate-in-delay-1">WANTED</h1>
-          <div class="h-1 bg-gradient-to-r from-transparent via-[#2d1f0f] to-transparent my-2 animate-in animate-in-delay-1"></div>
-          <h2 class="font-poster text-xl sm:text-2xl text-[#2d1f0f] tracking-wide animate-in animate-in-delay-1">CAPTAIN FADLI CREW</h2>
-          <p class="text-sm text-[#5c4a32] mt-2 italic animate-in animate-in-delay-2">"Capture your pirate moment in vintage style"</p>
-
-          <!-- Camera Preview -->
-          <div class="mt-6 animate-in animate-in-delay-2">
-            <div class="viewfinder relative aspect-[3/4] max-w-xs mx-auto">
-              
-              <!-- Video tersembunyi tapi aktif -->
-              <video id="videoPreview" autoplay playsinline muted></video>
-              <canvas id="liveCanvas"></canvas>
-              
-              <!-- Viewfinder corners -->
-              <div class="absolute top-2 left-2 w-6 h-6 border-l-2 border-t-2 border-[#c9a227] pointer-events-none z-10"></div>
-              <div class="absolute top-2 right-2 w-6 h-6 border-r-2 border-t-2 border-[#c9a227] pointer-events-none z-10"></div>
-              <div class="absolute bottom-2 left-2 w-6 h-6 border-l-2 border-b-2 border-[#c9a227] pointer-events-none z-10"></div>
-              <div class="absolute bottom-2 right-2 w-6 h-6 border-r-2 border-b-2 border-[#c9a227] pointer-events-none z-10"></div>
-              
-              <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 pointer-events-none z-20"></div>
-            </div>
-          </div>
-
-          <!-- Filter Panel -->
-          <div class="mt-6 animate-in animate-in-delay-3">
-            <p class="text-xs text-[#5c4a32] mb-3 font-bold tracking-wider">SELECT CAMERA MODE</p>
-            <div id="effectsPanel" class="flex justify-center gap-3 flex-wrap">
-              <button data-effect="original" class="filter-btn active px-4 py-2 rounded text-sm">Original</button>
-              <button data-effect="vintage" class="filter-btn px-4 py-2 rounded text-sm">Vintage</button>
-              <button data-effect="aesthetic" class="filter-btn px-4 py-2 rounded text-sm">Aesthetic</button>
-            </div>
-          </div>
-
-          <div class="mt-6 animate-in animate-in-delay-3">
-            <button id="captureBtn" class="btn-pirate font-wanted text-lg px-8 py-3 rounded tracking-widest">
-              CAPTURE
-            </button>
-          </div>
-          
-        </div>
-      </div>
-    </div>
-
-    <!-- Result View -->
-    <div id="resultView" class="hidden max-w-lg mx-auto">
-      <div class="wood-frame relative rounded-sm p-3 sm:p-4">
-        <div class="result-poster relative p-6 sm:p-8 text-center">
-          
-          <!-- Header Result -->
-          <div class="flex justify-center mb-2">
-            <svg class="skull-decoration w-14 h-14" viewBox="0 0 64 64" fill="none">
+          <div class="flex justify-center mb-4">
+            <svg class="w-16 h-16 drop-shadow" viewBox="0 0 64 64" fill="none">
               <ellipse cx="32" cy="28" rx="18" ry="20" fill="#2d1f0f"/>
               <ellipse cx="24" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
               <ellipse cx="40" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
@@ -256,19 +159,76 @@
           <div class="h-1 bg-gradient-to-r from-transparent via-[#2d1f0f] to-transparent my-2"></div>
           <h2 class="font-poster text-xl sm:text-2xl text-[#2d1f0f] tracking-wide">CAPTAIN FADLI CREW</h2>
 
-          <!-- Photo Container -->
+          <!-- Camera Preview -->
+          <div class="mt-6">
+            <div class="viewfinder relative aspect-[3/4] max-w-xs mx-auto">
+              <video id="videoPreview" autoplay playsinline muted></video>
+              <canvas id="liveCanvas"></canvas>
+              
+              <div class="absolute top-2 left-2 w-6 h-6 border-l-2 border-t-2 border-[#c9a227] pointer-events-none z-10"></div>
+              <div class="absolute top-2 right-2 w-6 h-6 border-r-2 border-t-2 border-[#c9a227] pointer-events-none z-10"></div>
+              <div class="absolute bottom-2 left-2 w-6 h-6 border-l-2 border-b-2 border-[#c9a227] pointer-events-none z-10"></div>
+              <div class="absolute bottom-2 right-2 w-6 h-6 border-r-2 border-b-2 border-[#c9a227] pointer-events-none z-10"></div>
+              
+              <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 pointer-events-none z-20"></div>
+            </div>
+          </div>
+
+          <!-- Filter Panel -->
+          <div class="mt-6">
+            <p class="text-xs text-[#5c4a32] mb-3 font-bold tracking-wider">SELECT CAMERA MODE</p>
+            <div id="effectsPanel" class="flex justify-center gap-3 flex-wrap">
+              <button data-effect="original" class="filter-btn active px-4 py-2 rounded text-sm">Original</button>
+              <button data-effect="vintage" class="filter-btn px-4 py-2 rounded text-sm">Vintage</button>
+              <button data-effect="aesthetic" class="filter-btn px-4 py-2 rounded text-sm">Aesthetic</button>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <button id="captureBtn" class="btn-pirate font-wanted text-lg px-8 py-3 rounded tracking-widest">
+              CAPTURE
+            </button>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+
+    <!-- Result View -->
+    <div id="resultView" class="hidden max-w-lg mx-auto">
+      <div class="wood-frame relative rounded-sm p-3 sm:p-4">
+        <div class="paper-texture relative p-6 sm:p-8 text-center">
+          
+          <div class="flex justify-center mb-2">
+             <svg class="w-14 h-14 drop-shadow" viewBox="0 0 64 64" fill="none">
+              <ellipse cx="32" cy="28" rx="18" ry="20" fill="#2d1f0f"/>
+              <ellipse cx="24" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
+              <ellipse cx="40" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
+              <path d="M28 38 L32 44 L36 38" stroke="#2d1f0f" stroke-width="2" fill="none"/>
+              <path d="M8 22 Q32 -8 56 22 Q48 18 32 16 Q16 18 8 22" fill="#2d1f0f"/>
+              <rect x="12" y="18" width="40" height="6" fill="#2d1f0f"/>
+              <line x1="8" y1="52" x2="24" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
+              <line x1="24" y1="52" x2="8" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
+              <line x1="40" y1="52" x2="56" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
+              <line x1="56" y1="52" x2="40" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+          </div>
+
+          <h1 class="font-wanted text-4xl sm:text-5xl text-[#2d1f0f] tracking-wider wanted-glow">WANTED</h1>
+          <div class="h-1 bg-gradient-to-r from-transparent via-[#2d1f0f] to-transparent my-2"></div>
+          <h2 class="font-poster text-xl sm:text-2xl text-[#2d1f0f] tracking-wide">CAPTAIN FADLI CREW</h2>
+
           <div class="mt-4 relative inline-block">
             <div class="border-4 border-[#2d1f0f] bg-[#1a1208] p-1">
               <canvas id="resultCanvas" class="block"></canvas>
             </div>
-            <!-- Corner Decorations -->
             <div class="absolute -top-2 -left-2 w-4 h-4 bg-[#c9a227] rounded-full"></div>
             <div class="absolute -top-2 -right-2 w-4 h-4 bg-[#c9a227] rounded-full"></div>
             <div class="absolute -bottom-2 -left-2 w-4 h-4 bg-[#c9a227] rounded-full"></div>
             <div class="absolute -bottom-2 -right-2 w-4 h-4 bg-[#c9a227] rounded-full"></div>
           </div>
 
-          <div class="mt-6"> <!-- Tambah margin top -->
+          <div class="mt-6">
             <p class="font-wanted text-lg text-[#2d1f0f] tracking-wide">REWARD</p>
             <p class="font-poster text-xl text-[#8b2500] tracking-wider">LEGENDARY TREASURE</p>
           </div>
@@ -295,19 +255,19 @@
     let stream = null;
     let animationId = null;
     
-    // Filter Definitions
-    const filterStyles = {
+    // Filter Maps (String untuk Canvas Context)
+    // Kita pakai string ini di dalam context.drawImage
+    const filterConfig = {
       'original': 'none',
       'vintage': 'sepia(0.7) contrast(1.2) brightness(0.95) saturate(1.1)',
       'aesthetic': 'sepia(0.3) saturate(1.2) contrast(1.1) brightness(1.15)'
     };
 
-    // DOM Elements
+    // DOM
     let videoPreview, liveCanvas, liveCtx, resultCanvas;
     let captureBtn, downloadBtn, retakeBtn, flashOverlay;
     let cameraView, resultView, dateDisplay, effectsPanel;
 
-    // Initialize
     async function initApp() {
       videoPreview = document.getElementById('videoPreview');
       liveCanvas = document.getElementById('liveCanvas');
@@ -335,74 +295,63 @@
       await initCamera();
     }
 
-    // Camera Init - Fix for Mobile
     async function initCamera() {
       try {
-        // Constraints untuk mobile dan desktop
-        const constraints = {
-          video: { 
-            facingMode: 'user', 
-            width: { ideal: 1280 }, // Minta resolusi besar, tapi akan di-downscale canvas-nya
-            height: { ideal: 720 } 
-          },
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
-        };
-        
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        });
         
         videoPreview.srcObject = stream;
-        
-        // FIX: Gunakan event 'playing' agar lebih reliable di mobile
-        videoPreview.onplaying = () => {
-          // Set canvas size (jangan terlalu besar agar performa HP bagus)
-          // Kita set max 640 lebar
-          const vw = videoPreview.videoWidth;
-          const vh = videoPreview.videoHeight;
-          
-          // Scaling down jika terlalu besar untuk kinerja mobile
-          const scale = Math.min(1, 800 / vw); 
-          
-          liveCanvas.width = vw * scale;
-          liveCanvas.height = vh * scale;
-          
-          console.log(`Canvas size: ${liveCanvas.width}x${liveCanvas.height}`);
-          
-          renderLoop();
-        };
-
-        // Paksa play untuk browser ketat
         await videoPreview.play();
 
+        // Setup Canvas
+        const vw = videoPreview.videoWidth;
+        const vh = videoPreview.videoHeight;
+        liveCanvas.width = vw;
+        liveCanvas.height = vh;
+
+        renderLoop();
+        
       } catch (err) {
         console.error('Camera error:', err);
-        alert('Gagal mengakses kamera. Pastikan izin kamera sudah diberikan.');
+        alert('Gagal akses kamera. Pastikan izin sudah diberikan.');
       }
     }
 
-    // Render Loop
+    // --- PERBAIKAN UTAMA: RENDER LOOP ---
+    // Kita terapkan filter di dalam Canvas Context, bukan di CSS Element.
+    // Ini memaksa browser mobile untuk memproses pixel satu per satu.
     function renderLoop() {
       if (!videoPreview.paused && !videoPreview.ended) {
-        liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
-        liveCtx.save();
         
-        // Mirror
+        // 1. Clear dulu
+        liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+        
+        // 2. Save context state
+        liveCtx.save();
+
+        // 3. Set Filter di Context (JS)
+        liveCtx.filter = filterConfig[currentEffect];
+
+        // 4. Mirror (Flip Horizontal)
         liveCtx.translate(liveCanvas.width, 0);
         liveCtx.scale(-1, 1);
-        
-        // Apply Filter via Context
-        liveCtx.filter = filterStyles[currentEffect];
-        
-        // Draw scaled
+
+        // 5. Gambar Video ke Canvas
         liveCtx.drawImage(videoPreview, 0, 0, liveCanvas.width, liveCanvas.height);
-        
+
+        // 6. Restore context (reset filter & transform)
         liveCtx.restore();
       }
       animationId = requestAnimationFrame(renderLoop);
     }
 
-    // Select Effect
+    // GANTI FILTER
     function selectEffect(effect) {
       currentEffect = effect;
+      // Kita tidak lagi ubah CSS, karena filter ditangani di renderLoop
+      // Update UI tombol
       effectsPanel.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.effect === effect);
       });
@@ -410,43 +359,55 @@
 
     // CAPTURE PHOTO
     function capturePhoto() {
-      // Flash FX
+      // Flash
       flashOverlay.classList.add('flash');
       setTimeout(() => flashOverlay.classList.remove('flash'), 300);
 
-      // Setup Result Canvas
+      // Setup result canvas
       const w = 300; 
       const h = 400;
       resultCanvas.width = w;
       resultCanvas.height = h;
       const rCtx = resultCanvas.getContext('2d');
 
-      // Clear
+      // 1. Clear
       rCtx.clearRect(0, 0, w, h);
 
-      // Calculate Crop
-      const canvasW = liveCanvas.width;
-      const canvasH = liveCanvas.height;
+      // 2. Save
+      rCtx.save();
+
+      // 3. Terapkan Filter yang SAMA PERSIS dengan Preview
+      rCtx.filter = filterConfig[currentEffect];
+
+      // 4. Mirror
+      rCtx.translate(w, 0);
+      rCtx.scale(-1, 1);
+
+      // 5. Draw dari Video (Bukan dari LiveCanvas agar kualitas maksimal)
+      const vw = videoPreview.videoWidth;
+      const vh = videoPreview.videoHeight;
       const ratio = w/h;
-      const canvasRatio = canvasW/canvasH;
+      const videoRatio = vw/vh;
 
-      let sx = 0, sy = 0, sw = canvasW, sh = canvasH;
+      let sx = 0, sy = 0, sw = vw, sh = vh;
 
-      if (canvasRatio > ratio) {
-          sw = canvasH * ratio;
-          sx = (canvasW - sw) / 2;
+      // Logic Crop Cover
+      if (videoRatio > ratio) {
+          sw = vh * ratio;
+          sx = (vw - sw) / 2;
       } else {
-          sh = canvasW / ratio;
-          sy = (canvasH - sh) / 2;
+          sh = vw / ratio;
+          sy = (vh - sh) / 2;
       }
 
-      // Draw dari liveCanvas (yang sudah ter-filter dan ter-mirror)
-      rCtx.drawImage(liveCanvas, sx, sy, sw, sh, 0, 0, w, h);
+      rCtx.drawImage(videoPreview, sx, sy, sw, sh, 0, 0, w, h);
+
+      // 6. Restore
+      rCtx.restore();
 
       showResult();
     }
 
-    // Show Result
     function showResult() {
       cancelAnimationFrame(animationId);
       if (stream) stream.getTracks().forEach(track => track.stop());
@@ -458,17 +419,16 @@
       resultView.classList.remove('hidden');
     }
 
-    // DOWNLOAD POSTER
     function downloadPoster() {
       const posterCanvas = document.createElement('canvas');
       const posterCtx = posterCanvas.getContext('2d');
       
       const pW = 600; 
-      const pH = 850; // Sedikit tinggiin biar muat text
+      const pH = 850; 
       posterCanvas.width = pW;
       posterCanvas.height = pH;
 
-      // 1. Background
+      // Background
       const grad = posterCtx.createLinearGradient(0, 0, 0, pH);
       grad.addColorStop(0, '#d9c9a8');
       grad.addColorStop(0.5, '#c4b393');
@@ -476,9 +436,8 @@
       posterCtx.fillStyle = grad;
       posterCtx.fillRect(0, 0, pW, pH);
 
-      // 2. Texts
+      // Texts
       posterCtx.textAlign = 'center';
-      
       posterCtx.font = '70px Rye, serif';
       posterCtx.fillStyle = '#2d1f0f';
       posterCtx.fillText('WANTED', pW/2, 120);
@@ -486,30 +445,27 @@
       posterCtx.font = '30px Sancreek, cursive';
       posterCtx.fillText('CAPTAIN FADLI CREW', pW/2, 170);
 
-      // Photo Frame Position - FIX MARGIN
+      // Photo Frame
       const frameW = 300; 
       const frameH = 400;
       const frameX = (pW - frameW) / 2; 
-      const frameY = 200; // Geser sedikit ke bawah
+      const frameY = 200;
       
-      // Draw Frame Border
       posterCtx.fillStyle = '#2d1f0f';
       posterCtx.fillRect(frameX, frameY, frameW, frameH);
       
-      // Draw Photo
       const padding = 8;
       posterCtx.drawImage(resultCanvas, frameX + padding, frameY + padding, frameW - (padding*2), frameH - (padding*2));
 
-      // Gold Corners
-      drawGoldCircle(posterCtx, frameX, frameY, 10);
-      drawGoldCircle(posterCtx, frameX + frameW, frameY, 10);
-      drawGoldCircle(posterCtx, frameX, frameY + frameH, 10);
-      drawGoldCircle(posterCtx, frameX + frameW, frameY + frameH, 10);
+      // Corners
+      [[frameX, frameY], [frameX+frameW, frameY], [frameX, frameY+frameH], [frameX+frameW, frameY+frameH]].forEach(([x,y]) => {
+          posterCtx.beginPath();
+          posterCtx.arc(x, y, 10, 0, Math.PI * 2);
+          posterCtx.fillStyle = '#c9a227';
+          posterCtx.fill();
+      });
 
-      // Texts Below Photo - FIX MARGIN
-      // Frame ends at 200 + 400 = 600. 
-      // Let's put Reward at 660 (gap 60px)
-      
+      // Bottom Texts
       posterCtx.font = '30px Rye, serif';
       posterCtx.fillStyle = '#2d1f0f';
       posterCtx.fillText('REWARD', pW/2, 660);
@@ -520,7 +476,7 @@
 
       // Stamp
       posterCtx.save();
-      posterCtx.translate(pW/2, 750); // Geser ke bawah
+      posterCtx.translate(pW/2, 750);
       posterCtx.rotate(-12 * Math.PI / 180);
       posterCtx.font = 'bold 20px Rye, serif';
       posterCtx.strokeStyle = '#8b2500';
@@ -533,12 +489,11 @@
       // Date
       posterCtx.font = 'bold 18px Courier Prime, monospace';
       posterCtx.fillStyle = '#5c4a32';
-      posterCtx.fillText(dateDisplay.textContent, pW/2, 810); // Geser ke bawah
+      posterCtx.fillText(dateDisplay.textContent, pW/2, 810);
 
       // Skull
-      const svgElement = document.getElementById('skullSvg');
-      const svgData = new XMLSerializer().serializeToString(svgElement);
-      const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+      const skullSvgCode = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="28" rx="18" ry="20" fill="#2d1f0f"/><ellipse cx="24" cy="26" rx="5" ry="6" fill="#d4c4a8"/><ellipse cx="40" cy="26" rx="5" ry="6" fill="#d4c4a8"/><path d="M28 38 L32 44 L36 38" stroke="#2d1f0f" stroke-width="2" fill="none"/><path d="M8 22 Q32 -8 56 22 Q48 18 32 16 Q16 18 8 22" fill="#2d1f0f"/><rect x="12" y="18" width="40" height="6" fill="#2d1f0f"/><line x1="8" y1="52" x2="24" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/><line x1="24" y1="52" x2="8" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/><line x1="40" y1="52" x2="56" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/><line x1="56" y1="52" x2="40" y2="60" stroke="#2d1f0f" stroke-width="4" stroke-linecap="round"/></svg>`;
+      const svgBlob = new Blob([skullSvgCode], {type: 'image/svg+xml;charset=utf-8'});
       const svgUrl = URL.createObjectURL(svgBlob);
       
       const skullImg = new Image();
@@ -546,31 +501,19 @@
         posterCtx.drawImage(skullImg, pW/2 - 60, 20, 120, 120);
         URL.revokeObjectURL(svgUrl);
         
-        // Trigger Download
         const link = document.createElement('a');
-        link.download = 'wanted-captain-fadli-crew.png';
+        link.download = 'wanted-poster.png';
         link.href = posterCanvas.toDataURL('image/png');
         link.click();
       };
       skullImg.src = svgUrl;
     }
 
-    function drawGoldCircle(ctx, x, y, r) {
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#c9a227';
-        ctx.fill();
-        ctx.closePath();
-    }
-
-    // Retake
     async function retakePhoto() {
       resultView.classList.add('hidden');
       cameraView.classList.remove('hidden');
       currentEffect = 'original';
-      effectsPanel.querySelectorAll('button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.effect === 'original');
-      });
+      selectEffect('original'); 
       await initCamera();
     }
 
