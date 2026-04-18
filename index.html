@@ -126,11 +126,10 @@
 
     /* FIX: CSS untuk Filter & Mirror */
     #liveCanvas {
-      transform: scaleX(-1); /* Mirror kamera */
+      /* Kita hapus transform CSS karena mirror akan dilakukan manual di canvas */
       object-fit: cover;
       width: 100%;
       height: 100%;
-      transition: filter 0.3s ease;
     }
 
     .video-source-hidden {
@@ -179,7 +178,6 @@
           
           <!-- Header -->
           <div class="flex justify-center mb-4 animate-in">
-            <!-- SVG Skull -->
             <svg id="skullSvg" class="skull-decoration w-16 h-16" viewBox="0 0 64 64" fill="none">
               <ellipse cx="32" cy="28" rx="18" ry="20" fill="#2d1f0f"/>
               <ellipse cx="24" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
@@ -243,7 +241,6 @@
           
           <!-- Header Result -->
           <div class="flex justify-center mb-2">
-             <!-- SVG Skull Clone for Result -->
             <svg class="skull-decoration w-14 h-14" viewBox="0 0 64 64" fill="none">
               <ellipse cx="32" cy="28" rx="18" ry="20" fill="#2d1f0f"/>
               <ellipse cx="24" cy="26" rx="5" ry="6" fill="#d4c4a8"/>
@@ -265,7 +262,6 @@
           <!-- Photo Container -->
           <div class="mt-4 relative inline-block">
             <div class="border-4 border-[#2d1f0f] bg-[#1a1208] p-1">
-              <!-- Hidden Canvas untuk menyimpan data foto mentah -->
               <canvas id="resultCanvas" class="block"></canvas>
             </div>
             <!-- Corner Decorations -->
@@ -340,7 +336,6 @@
       });
 
       await initCamera();
-      liveCanvas.style.filter = filterStyles['original'];
     }
 
     // Camera Init
@@ -367,9 +362,28 @@
     }
 
     // Render Loop (Preview Only)
+    // FIX: Terapkan filter dan mirror di dalam canvas context, bukan CSS element
     function renderLoop() {
       if (!videoPreview.paused && !videoPreview.ended) {
+        // 1. Clear canvas
+        liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+        
+        // 2. Save context state
+        liveCtx.save();
+
+        // 3. Apply Mirror (Flip Horizontal)
+        liveCtx.translate(liveCanvas.width, 0);
+        liveCtx.scale(-1, 1);
+
+        // 4. Apply Filter
+        // Ini memastikan data pixel di canvas sudah ter-filter, bukan hanya tampilan visual
+        liveCtx.filter = filterStyles[currentEffect];
+
+        // 5. Draw video frame
         liveCtx.drawImage(videoPreview, 0, 0, liveCanvas.width, liveCanvas.height);
+
+        // 6. Restore context
+        liveCtx.restore();
       }
       animationId = requestAnimationFrame(renderLoop);
     }
@@ -377,7 +391,9 @@
     // Select Effect
     function selectEffect(effect) {
       currentEffect = effect;
-      liveCanvas.style.filter = filterStyles[effect];
+      // Hapus style filter CSS karena sekarang ditangani di renderLoop
+      // liveCanvas.style.filter = filterStyles[effect]; 
+      
       effectsPanel.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.effect === effect);
       });
@@ -399,19 +415,7 @@
       // 1. Clear
       rCtx.clearRect(0, 0, w, h);
 
-      // 2. Save context state
-      rCtx.save();
-
-      // 3. Apply Filter string to context
-      // Ini kuncinya: terapkan filter sebelum menggambar
-      rCtx.filter = filterStyles[currentEffect];
-
-      // 4. Mirror & Draw
-      // Kita gambar liveCanvas (yang isinya video mentah) ke resultCanvas
-      rCtx.translate(w, 0);
-      rCtx.scale(-1, 1);
-
-      // 5. Calculate Crop (Cover)
+      // 2. Calculate Crop (Cover)
       const videoW = liveCanvas.width;
       const videoH = liveCanvas.height;
       const ratio = w/h;
@@ -420,21 +424,18 @@
       let sx = 0, sy = 0, sw = videoW, sh = videoH;
 
       if (videoRatio > ratio) {
-          // Video lebih lebar, crop samping
           sw = videoH * ratio;
           sx = (videoW - sw) / 2;
       } else {
-          // Video lebih tinggi, crop atas/bawah
           sh = videoW / ratio;
           sy = (videoH - sh) / 2;
       }
 
-      // Draw the image
-      // Parameter: source, sx, sy, sw, sh, dx, dy, dw, dh
+      // 3. Draw
+      // Karena liveCanvas sudah di-mirror dan di-filter di renderLoop,
+      // kita tinggal menggambar isinya langsung.
+      // Tidak perlu transform mirror atau filter lagi di sini.
       rCtx.drawImage(liveCanvas, sx, sy, sw, sh, 0, 0, w, h);
-
-      // 6. Restore context (reset filter & transform)
-      rCtx.restore();
 
       showResult();
     }
@@ -453,17 +454,15 @@
 
     // DOWNLOAD POSTER
     function downloadPoster() {
-      // Buat canvas baru untuk menyimpan seluruh poster
       const posterCanvas = document.createElement('canvas');
       const posterCtx = posterCanvas.getContext('2d');
       
-      // Ukuran output (2x untuk kualitas tinggi)
       const pW = 600; 
       const pH = 800;
       posterCanvas.width = pW;
       posterCanvas.height = pH;
 
-      // 1. Draw Background (Paper Color)
+      // 1. Background
       const grad = posterCtx.createLinearGradient(0, 0, 0, pH);
       grad.addColorStop(0, '#d9c9a8');
       grad.addColorStop(0.5, '#c4b393');
@@ -471,19 +470,16 @@
       posterCtx.fillStyle = grad;
       posterCtx.fillRect(0, 0, pW, pH);
 
-      // 2. Draw Texts
+      // 2. Texts
       posterCtx.textAlign = 'center';
       
-      // WANTED Title
       posterCtx.font = '70px Rye, serif';
       posterCtx.fillStyle = '#2d1f0f';
       posterCtx.fillText('WANTED', pW/2, 120);
 
-      // Subtitle
       posterCtx.font = '30px Sancreek, cursive';
       posterCtx.fillText('CAPTAIN FADLI CREW', pW/2, 170);
 
-      // REWARD
       posterCtx.font = '30px Rye, serif';
       posterCtx.fillStyle = '#2d1f0f';
       posterCtx.fillText('REWARD', pW/2, 620);
@@ -492,12 +488,11 @@
       posterCtx.fillStyle = '#8b2500';
       posterCtx.fillText('LEGENDARY TREASURE', pW/2, 660);
 
-      // Date
       posterCtx.font = 'bold 18px Courier Prime, monospace';
       posterCtx.fillStyle = '#5c4a32';
       posterCtx.fillText(dateDisplay.textContent, pW/2, 750);
 
-      // 3. Draw Skull (Dari SVG)
+      // 3. Draw Skull
       const svgElement = document.getElementById('skullSvg');
       const svgData = new XMLSerializer().serializeToString(svgElement);
       const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
@@ -505,22 +500,26 @@
       
       const skullImg = new Image();
       skullImg.onload = () => {
-        // Draw Skull
         posterCtx.drawImage(skullImg, pW/2 - 60, 20, 120, 120);
         URL.revokeObjectURL(svgUrl);
 
         // 4. Draw Photo Frame
-        const frameX = 100;
-        const frameY = 210;
-        const frameW = 400;
-        const frameH = 380;
+        // FIX: Sesuaikan ukuran frame dengan aspect ratio foto (300x400 -> 3:4)
+        // Kita buat frame tinggi 400px (skala 2x dari result canvas) -> lebar 300px
+        // Atau biarkan lebih kecil? Mari kita set 300x400 (sesuai source) di tengah.
+        
+        const frameW = 300; 
+        const frameH = 400;
+        const frameX = (pW - frameW) / 2; // Center horizontal
+        const frameY = 210; // Position setelah header
         
         // Frame border
         posterCtx.fillStyle = '#2d1f0f';
         posterCtx.fillRect(frameX, frameY, frameW, frameH);
         
-        // Photo (dari resultCanvas)
+        // Photo
         const padding = 8;
+        // Gambar resultCanvas (yang sudah benar aspect rasionya) ke frame
         posterCtx.drawImage(resultCanvas, frameX + padding, frameY + padding, frameW - (padding*2), frameH - (padding*2));
 
         // Gold Corners
@@ -541,7 +540,7 @@
         posterCtx.fillText('NEW RECRUIT', 0, 5);
         posterCtx.restore();
 
-        // 5. Trigger Download
+        // Download
         const link = document.createElement('a');
         link.download = 'wanted-captain-fadli-crew.png';
         link.href = posterCanvas.toDataURL('image/png');
@@ -563,7 +562,9 @@
       resultView.classList.add('hidden');
       cameraView.classList.remove('hidden');
       currentEffect = 'original';
-      liveCanvas.style.filter = filterStyles['original'];
+      // Reset context filter saat restart
+      liveCtx.filter = filterStyles['original'];
+      
       effectsPanel.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.effect === 'original');
       });
